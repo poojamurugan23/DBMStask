@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Student Result Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+</head>
+<body>
+  <h1>Student Result Portal</h1>
+
+  <!-- Sign Up Section -->
+  <div id="signUpSection">
+    <h2>Sign Up</h2>
+    <input type="text" id="studentName" placeholder="Enter your Name" required/>
+    <button onclick="signUpStudent()">Sign Up</button>
+  </div>
+
+  <!-- Login Section -->
+  <div id="loginSection">
+    <h2>Login</h2>
+    <input type="email" id="loginEmail" placeholder="Enter your Email" required/>
+    <input type="password" id="loginPassword" placeholder="Enter your Password" required/>
+    <button onclick="loginStudent()">Login</button>
+  </div>
+
+  <!-- Result Display Section -->
+  <div id="resultSection" style="display:none;">
+    <h2>Student Results</h2>
+    <p id="studentNameResult"></p>
+    <p id="minMark"></p>
+    <p id="maxMark"></p>
+    <p id="totalMark"></p>
+    <p id="avgMark"></p>
+  </div>
+
+  <script>
+    const supabaseUrl = 'https://your-project.supabase.co';  // Replace with your Supabase URL
+    const supabaseKey = 'your-public-anon-key';              // Replace with your Supabase Key
+    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+
+    // Sign-Up Function for Students
+    async function signUpStudent() {
+      const studentName = document.getElementById("studentName").value.trim();
+      if (!studentName) {
+        alert("Please enter your name!");
+        return;
+      }
+
+      // Generate student email (example: 'name@student.com')
+      const studentEmail = `${studentName.toLowerCase().replace(/\s+/g, '')}@student.com`;
+      const studentPassword = "password123"; // Default password for demo
+
+      // Sign up the student via Supabase Auth
+      const { user, error } = await supabase.auth.signUp({
+        email: studentEmail,
+        password: studentPassword
+      });
+
+      if (error) {
+        alert("Error signing up: " + error.message);
+      } else {
+        // Insert the student data into the database (name, email, password)
+        const { data, insertError } = await supabase
+          .from('Student')
+          .insert([{ StudentName: studentName, email: studentEmail, password: studentPassword }]);
+
+        if (insertError) {
+          alert("Error inserting student data: " + insertError.message);
+        } else {
+          alert("Sign-up successful! Please check your email to verify.");
+        }
+      }
+    }
+
+    // Login Function for Students
+    async function loginStudent() {
+      const email = document.getElementById("loginEmail").value;
+      const password = document.getElementById("loginPassword").value;
+
+      // Log in the student via Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signIn({
+        email: email,
+        password: password
+      });
+
+      if (authError) {
+        alert("Error logging in: " + authError.message);
+        return;
+      }
+
+      // Check if student exists in the database
+      const { data: studentData, error: studentError } = await supabase
+        .from('Student')
+        .select('*')
+        .eq('email', email)
+        .single();
+
+      if (studentData) {
+        alert(`Welcome, ${studentData.StudentName}!`);
+        fetchStudentResult(studentData.StudentID);
+      } else {
+        alert("No matching student data found.");
+      }
+    }
+
+    // Fetch Student Results from the Result Table
+    async function fetchStudentResult(studentID) {
+      const { data: resultData, error: resultError } = await supabase
+        .from('Result')
+        .select('*')
+        .eq('StudentID', studentID)
+        .single();
+
+      if (resultError) {
+        alert("Error fetching results: " + resultError.message);
+        return;
+      }
+
+      if (resultData) {
+        document.getElementById('studentNameResult').innerText = `Student: ${resultData.StudentName}`;
+        document.getElementById('minMark').innerText = `Min Mark: ${resultData.MinimumMarks}`;
+        document.getElementById('maxMark').innerText = `Max Mark: ${resultData.MaximumMarks}`;
+        document.getElementById('totalMark').innerText = `Total Marks: ${resultData.TotalMarks}`;
+        document.getElementById('avgMark').innerText = `Average Marks: ${resultData.AverageMarks}`;
+
+        // Show result section
+        document.getElementById('resultSection').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>
